@@ -16,7 +16,7 @@ from astropy.visualization import quantity_support
 log.setLevel("ERROR")
 quantity_support()
 
-from multi_fits_cubes.helpers import MaskCube
+from multi_fits_cubes.helpers import MaskCube, ValidationMap
 
 class Cloud:
     mask_dir = '../mask_files_12CO/'
@@ -30,14 +30,6 @@ class Cloud:
     co13_scale = 3
     c18o_scale = 5
 
-    co13_sum_dir = f"../13COsum_files_idx_by12CO/"
-    co13_cover_dir = f"../13COcover_files_idx_by12CO/"
-    co13_rms_dir = f"../13COrms_files_idx_by12CO/"
-
-    c18o_sum_dir = f"../C18Osum_files_idx_by12CO/"
-    c18o_cover_dir = f"../C18Ocover_files_idx_by12CO/"
-    c18o_rms_dir = f"../C18Orms_files_idx_by12CO/"
-
     def __init__(self, idx):
         self.idx = idx
         self.mask_cube = SpectralCube.read(self.mask_dir + f"cloud{idx}mask.fits")
@@ -48,12 +40,14 @@ class Cloud:
         self.v_cen = self.info['v_cen'][0] * self.info['v_cen'].unit
 
         self.co12_cube = self.mask_cube_obj.cut_and_mask_from_big_cube(self.big12)
-        self.co12_cube = self.mask_cube_obj.cut_and_mask_from_big_cube(self.big13)
-        self.co12_cube = self.mask_cube_obj.cut_and_mask_from_big_cube(self.big18)
+        self.co13_cube = self.mask_cube_obj.cut_and_mask_from_big_cube(self.big13)
+        self.c18o_cube = self.mask_cube_obj.cut_and_mask_from_big_cube(self.big18)
 
         assert self.co12_cube.shape == self.mask_cube.shape
         assert self.co13_cube.shape[1:] == self.mask_cube.shape[1:]
         assert self.c18o_cube.shape[1:] == self.mask_cube.shape[1:]
+
+
 
         self.map_mask = self.mask_cube.max(axis=0) > 0 * u.dimensionless_unscaled
         cube_mask = np.zeros(self.co12_cube.shape, dtype=bool)
