@@ -71,7 +71,7 @@ class MaskCube:
         return new_cube
 
     def cut_and_mask_from_big_cube(self, big_cube, with_vel_unit=u.km / u.s, with_value_unit=u.K):
-        new_cube = self.cut_from_a_big_cube(big_cube, with_value_unit, with_value_unit)
+        new_cube = self.cut_from_a_big_cube(big_cube, with_vel_unit, with_value_unit)
         mask3d = self.mask_of_a_new_cube(new_cube)
         return new_cube.with_mask(mask3d)
 
