@@ -1,4 +1,5 @@
 from pathlib import Path
+from collections import OrderedDict
 from astropy.table import Table
 from astropy import units as u
 from matplotlib import pyplot as plt
@@ -21,11 +22,13 @@ from multi_fits_cubes.helpers import MaskCube, ValidationMap
 
 
 class Cloud:
-    def __init__(self, name, mask_cube_file, big_cubes: dict):
+    def __init__(self, name, mask_cube_file, big_cubes: OrderedDict):
         self.name = name
         self.mask_cube_obj = MaskCube.from_file(mask_cube_file)
         self.cubes = {}
+        self.line_names = []
         for line, big_cube in big_cubes.items():
+            self.line_names.append(line)
             datacube = self.mask_cube_obj.cut_and_mask_from_big_cube(big_cube)
             self.cubes[line] = datacube
 
