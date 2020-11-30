@@ -77,6 +77,11 @@ class MaskCube:
         mask3d = self.mask_of_a_new_cube(new_cube)
         return new_cube.with_mask(mask3d)
 
+    def get_mask_map2d(self):
+        sum_map_np = self.mask3d.sum(axis=0).filled_data[:].value
+        mask_map_2d = ~np.isnan(sum_map_np) & (sum_map_np != 0)
+        return mask_map_2d
+
     @staticmethod
     def from_file(fits_filename: str):
         cube = SpectralCube.read(fits_filename)
@@ -135,6 +140,8 @@ class ValidationMap:
 
         if self.cover_map is None:
             raise ValueError("Haven't load a cover map yet!")
+
+
 
 
 class Map(Projection):
