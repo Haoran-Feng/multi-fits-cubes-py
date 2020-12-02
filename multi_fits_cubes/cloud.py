@@ -27,6 +27,7 @@ class Cloud:
         self.mask_cube_obj = MaskCube.from_file(mask_cube_file)
         self.cubes = {}
         self.line_names = []
+        self.big_cubes = big_cubes
         for line, big_cube in big_cubes.items():
             self.line_names.append(line)
             datacube = self.mask_cube_obj.cut_and_mask_from_big_cube(big_cube)
@@ -46,8 +47,13 @@ class Cloud:
     def __str__(self):
         return f"Cloud: {self.name}, Lines: {[k for k in self.cubes.keys()]}"
 
+    def get_cube_with_extra_v_left_right_range(self, line_name, v_left, v_right):
+        cube = self.mask_cube_obj.cut_extra_v_left_v_right_and_2d_mask_from_big_cube(self.big_cubes[line_name], v_left, v_right)
+        return cube
+
+
 class CloudManager:
-    def __init__(self, mask_dir: str, big_cubes: dict, idx_re=r'cloud(?P<idx>\d+)', index_type=int):
+    def __init__(self, mask_dir: str, big_cubes: dict, catalog=None, catalog_idx_col='_idx', idx_re=r'cloud(?P<idx>\d+)', index_type=int):
         self.mask_dir = Path(mask_dir)
         self.mask_fits_list = list(self.mask_dir.glob('*.fits'))
         self.cloud_indices = [index_type(re.search(idx_re, f.stem).group('idx')) for f in self.mask_fits_list]
@@ -55,6 +61,14 @@ class CloudManager:
         self.cloud_idx_to_mask_filepath = {idx: self.mask_fits_list[i] for i, idx in enumerate(self.cloud_indices)}
 
         self.big_cubes = {}
+
+
+        self.catalog = catalog
+        self.catalog_idx_col = catalog_idx_col
+        if self.catalog is not None:
+            if isinstance(self.catalog, str):
+                self.catalog = Table.read(self.catalog)
+
         for k, v in big_cubes.items():
             if isinstance(v, str):
                 big_cube = SpectralCube.read(v)
@@ -68,6 +82,8 @@ class CloudManager:
             self.big_cubes[k] = big_cube
 
         self.loaded_cloud = {}
+
+
 
     def get_cloud_indices(self):
         return self.cloud_indices
@@ -86,8 +102,13 @@ class CloudManager:
                       mask_cube_file=str(self.cloud_idx_to_mask_filepath[idx]),
                       big_cubes=self.big_cubes)
 
+        if self.catalog is not None:
+            idx_row = self.catalog[self.catalog_idx_col] == idx
+            setattr(cloud, 'catalog', self.catalog[idx_row])
+
         self.loaded_cloud[idx] = cloud
         return cloud
+
 
 
 if __name__ == '__main__':

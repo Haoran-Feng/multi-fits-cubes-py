@@ -6,8 +6,8 @@ from astropy.wcs import WCS
 
 
 class MaskCube:
-    def __init__(self, cube: SpectralCube):
-        self.mask3d = cube
+    def __init__(self, maskcube: SpectralCube):
+        self.mask3d = maskcube
         self.spectral_axis = self.mask3d.spectral_axis
         self.spectral_resolution = self.spectral_axis[-1] - self.spectral_axis[-2]
 
@@ -50,17 +50,11 @@ class MaskCube:
 
         return mask_for_new_cube_np
 
-    def cut_from_a_big_cube(self, big_cube: SpectralCube, with_vel_unit=u.km / u.s, with_value_unit=u.K):
-        """
-        Cut the part from a big spectral cube that corresponds to the current mask cube's world extrema
-        e.g. Cut the 30° < l < 30.5°, 0° < b < 0.5° from a big mosaic fits.
-        :param big_cube:
-        :return:
-        """
+    def cut_from_a_big_cube_v_range(self, big_cube: SpectralCube, vlo, vhi, with_vel_unit=u.km / u.s, with_value_unit=u.K):
         l, b = self.mask3d.world_extrema
         llo, lhi = l
         blo, bhi = b
-        vlo, vhi = self.mask3d.spectral_extrema
+        # vlo, vhi = self.mask3d.spectral_extrema
 
         new_cube = big_cube.subcube(
             xlo=llo, xhi=lhi,
@@ -72,6 +66,48 @@ class MaskCube:
 
         return new_cube
 
+
+    def cut_from_a_big_cube(self, big_cube: SpectralCube, with_vel_unit=u.km / u.s, with_value_unit=u.K):
+        """
+        Cut the part from a big spectral cube that corresponds to the current mask cube's world extrema
+        e.g. Cut the 30° < l < 30.5°, 0° < b < 0.5° from a big mosaic fits.
+        :param big_cube:
+        :return:
+        """
+        vlo, vhi = self.mask3d.spectral_extrema
+        new_cube = self.cut_from_a_big_cube_v_range(big_cube, vlo, vhi, with_vel_unit, with_value_unit)
+        return new_cube
+
+    def cut_from_a_big_cube_with_v_cen_width(self, big_cube: SpectralCube,
+                                             v_cen: u.Quantity,
+                                             v_width: u.Quantity,
+                                             with_vel_unit=u.km / u.s,
+                                             with_value_unit=u.K):
+        """
+        Cut the part from a big spectral cube that corresponds to the current mask cube's world extrema
+        e.g. Cut the 30° < l < 30.5°, 0° < b < 0.5° from a big mosaic fits, and on the third dimension,
+        from v_cen - 0.5 * v_width to v_cen + 0.5 * v_width
+        """
+        new_cube = self.cut_from_a_big_cube_v_range(big_cube, v_cen - 0.5 * v_width, v_cen + 0.5 * v_width, with_vel_unit, with_value_unit)
+        return new_cube
+
+    def cut_from_a_big_cube_with_extra_v_range(self,
+                                               big_cube: SpectralCube,
+                                               extra_v_left: u.Quantity,
+                                               extra_v_right: u.Quantity,
+                                               with_vel_unit=u.km / u.s,
+                                               with_value_unit=u.K):
+        """
+        Cut the part from a big spectral cube that corresponds to the current mask cube's world extrema
+        e.g. Cut the 30° < l < 30.5°, 0° < b < 0.5° from a big mosaic fits, and on the third dimension,
+        from vlo - extra_v_left to vhi + extra_v_right
+        """
+        vlo, vhi = self.mask3d.spectral_extrema
+        vlo = vlo - extra_v_left
+        vhi = vhi + extra_v_right
+        new_cube = self.cut_from_a_big_cube_v_range(big_cube, vlo, vhi, with_vel_unit, with_value_unit)
+        return new_cube
+
     def cut_and_mask_from_big_cube(self, big_cube, with_vel_unit=u.km / u.s, with_value_unit=u.K):
         new_cube = self.cut_from_a_big_cube(big_cube, with_vel_unit, with_value_unit)
         mask3d = self.mask_of_a_new_cube(new_cube)
@@ -81,6 +117,16 @@ class MaskCube:
         sum_map_np = self.mask3d.sum(axis=0).filled_data[:].value
         mask_map_2d = ~np.isnan(sum_map_np) & (sum_map_np != 0)
         return mask_map_2d
+
+    def cut_extra_v_and_2d_mask_from_big_cube(self, big_cube, v_cen, v_width, with_vel_unit=u.km / u.s, with_value_unit=u.K):
+        new_cube = self.cut_from_a_big_cube_with_v_cen_width(big_cube, v_cen, v_width, with_vel_unit, with_value_unit)
+        mask2d = self.get_mask_map2d()
+        return new_cube.with_mask(mask2d)
+
+    def cut_extra_v_left_v_right_and_2d_mask_from_big_cube(self, big_cube, extra_v_left, extra_v_right, with_vel_unit=u.km / u.s, with_value_unit=u.K):
+        new_cube = self.cut_from_a_big_cube_with_extra_v_range(big_cube, extra_v_left, extra_v_right, with_vel_unit, with_value_unit)
+        mask2d = self.get_mask_map2d()
+        return new_cube.with_mask(mask2d)
 
     @staticmethod
     def from_file(fits_filename: str):
