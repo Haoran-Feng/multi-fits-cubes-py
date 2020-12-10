@@ -183,7 +183,7 @@ class AvgSpec3LineValidPlotter(SpecPlotter):
                 cloud_map[cloud_map == 0.0] = np.nan
                 axins = inset_axes(ax, width="20%", height="20%", loc=loc)
                 loc += 1
-                axins.imshow(cloud_map, origin=0, cmap='Reds')
+                axins.imshow(cloud_map, origin='lower', cmap='Reds')
                 axins.tick_params(labelleft=False, labelbottom=False)
                 axins.set_title(target_line)
                 axins.set_xticks([])
