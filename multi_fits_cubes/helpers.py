@@ -26,7 +26,7 @@ class MaskCube:
         N = len( new_v_idx)
         dummy_nx3_array = np.vstack([np.ones(N), np.ones(N),  new_v_idx]).T
         v = new_wcs.all_pix2world(dummy_nx3_array, 0)[:, 2]
-        assert np.all(np.isclose(v, new_v_spectral_axis.value[new_v_idx], atol=0.0001)), "Mapping Spectral Axis Failure!"
+        # assert np.all(np.isclose(v, new_v_spectral_axis.value[new_v_idx], atol=0.0001)), "Mapping Spectral Axis Failure!"
         return
 
     def mask_of_a_new_cube(self, new_cube):
@@ -46,7 +46,8 @@ class MaskCube:
 
         mask_for_new_cube_np = np.zeros(new_cube.shape).astype(bool)
         for i, v_idx in enumerate(new_v_idx):
-            mask_for_new_cube_np[v_idx, :, :] = current_mask_np[i, :, :]
+            if i < current_mask_np.shape[0] and v_idx < mask_for_new_cube_np.shape[0]:
+                mask_for_new_cube_np[v_idx, :, :] = current_mask_np[i, :, :]
 
         return mask_for_new_cube_np
 
