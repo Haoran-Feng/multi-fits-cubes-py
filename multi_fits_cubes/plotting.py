@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter, AutoMinorLocator
 from astropy.visualization import quantity_support
+from astropy import units as u
 
 
 quantity_support()
@@ -81,7 +82,7 @@ class AvgSpec3LineValidPlotter(SpecPlotter):
 
     def _prepare_extra_v_cube(self, line_name):
         vlo, vhi = self.cloud.mask_cube_obj.mask3d.spectral_extrema
-        delta_v = (vhi - vlo)
+        delta_v = max((vhi - vlo), 7.5 * u.km / u.s)
         cube = self.cloud.get_cube_with_extra_v_left_right_range(line_name, delta_v, delta_v)
         self.extra_v_data_cubes[line_name] = cube
 
@@ -166,9 +167,14 @@ class AvgSpec3LineValidPlotter(SpecPlotter):
 
 
         plt.legend(loc=1)
-        line2, line3 = self.cloud.line_names[1:]
-        plt.title(
-            f"{self.cloud.name}, {line2} N Pixels={self.valid_point_counts[line2]}, {line3} N Pixels={self.valid_point_counts[line3]}")
+        if len(self.cloud.line_names) == 3:
+            line2, line3 = self.cloud.line_names[1:]
+            plt.title(
+                f"{self.cloud.name}, {line2} N Pixels={self.valid_point_counts[line2]}, {line3} N Pixels={self.valid_point_counts[line3]}")
+        elif len(self.cloud.line_names) == 2:
+            line2 = self.cloud.line_names[1]
+            plt.title(
+                f"{self.cloud.name}, {line2} N Pixels={self.valid_point_counts[line2]}")
 
         if overlay_valid_maps:
 

@@ -14,17 +14,19 @@ if __name__ == '__main__':
 
     cm = CloudManager('../test_data/masks/', big_cubes=OrderedDict({'12CO': '../test_data/bigs/M195_U.fits',
                                                                    '13CO': '../test_data/bigs/M195_L.fits',
-                                                                   'C18O': '../test_data/bigs/M195_L2.fits'}),
+                                                                   # 'C18O': '../test_data/bigs/M195_L2.fits'
+                                                                }),
                       catalog='../test_data/catalogs/12CO_less220_catalog.fit')
-    cloud = cm.load_cloud(415685)
+    cloud = cm.load_cloud(1254)
     plotter = AvgSpec3LineValidPlotter(cloud, {#'12CO': '../test_data/bigs/M195_U_rms.fits',
                                                '13CO': '../test_data/bigs/M195_L_rms.fits',
-                                               'C18O': '../test_data/bigs/M195_L2_rms.fits'
+                                               # 'C18O': '../test_data/bigs/M195_L2_rms.fits'
                                                },
                                        valid_n_sigma=3)
-    plotter.set_line_scale({'12CO': 1, '13CO': 3, 'C18O': 5})
+    plotter.set_line_scale({'12CO': 1, '13CO': 3})
+    MWISP_CO_LINE_LATEX.pop('C18O')
     plotter.set_line_name_latex(MWISP_CO_LINE_LATEX)
-    plotter.prepare()
+    plotter.prepare(cross_check_valid_rules=[])
     plotter.plot_avg_spec()
 
 
