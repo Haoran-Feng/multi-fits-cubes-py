@@ -53,7 +53,9 @@ class Cloud:
 
 
 class CloudManager:
-    def __init__(self, mask_dir: str, big_cubes: dict, catalog=None, catalog_idx_col='_idx', idx_re=r'cloud(?P<idx>\d+)', index_type=int, cls=Cloud):
+    def __init__(self,
+                 mask_dir: str,
+                 big_cubes: dict, catalog=None, catalog_idx_col='_idx', idx_re=r'cloud(?P<idx>\d+)', index_type=int, cls=Cloud):
         self.cls = cls
         self.mask_dir = Path(mask_dir)
         self.mask_fits_list = list(self.mask_dir.glob('*.fits'))
@@ -61,7 +63,7 @@ class CloudManager:
         self.cloud_indices_set = set(self.cloud_indices)
         self.cloud_idx_to_mask_filepath = {idx: self.mask_fits_list[i] for i, idx in enumerate(self.cloud_indices)}
 
-        self.big_cubes = {}
+        self.big_cubes = OrderedDict()
 
 
         self.catalog = catalog

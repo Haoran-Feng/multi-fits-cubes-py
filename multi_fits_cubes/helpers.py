@@ -8,6 +8,7 @@ from astropy.wcs import WCS
 class MaskCube:
     def __init__(self, maskcube: SpectralCube):
         self.mask3d = maskcube
+        self.mask3d.allow_huge_operations = True
         self.spectral_axis = self.mask3d.spectral_axis
         self.spectral_resolution = self.spectral_axis[-1] - self.spectral_axis[-2]
 
