@@ -22,9 +22,15 @@ from multi_fits_cubes.helpers import MaskCube, ValidationMap
 
 
 class Cloud:
-    def __init__(self, name, mask_cube_file, big_cubes: OrderedDict):
+    def __init__(self, name, mask_cube, big_cubes: OrderedDict):
         self.name = name
-        self.mask_cube_obj = MaskCube.from_file(mask_cube_file)
+        if isinstance(mask_cube, str):
+            self.mask_cube_obj = MaskCube.from_file(mask_cube)
+        elif isinstance(mask_cube, SpectralCube):
+            self.mask_cube_obj = MaskCube(mask_cube)
+        else:
+            raise TypeError("mask_cube must be a FITS file or an instance of SpectralCube.")
+
         self.cubes = {}
         self.line_names = []
         self.big_cubes = big_cubes
@@ -102,7 +108,7 @@ class CloudManager:
             return self.loaded_cloud[idx]
 
         cloud = self.cls(name=name_prefix + str(idx),
-                      mask_cube_file=str(self.cloud_idx_to_mask_filepath[idx]),
+                      mask_cube=str(self.cloud_idx_to_mask_filepath[idx]),
                       big_cubes=self.big_cubes)
 
         if self.catalog is not None:
