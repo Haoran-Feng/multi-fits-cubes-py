@@ -7,7 +7,7 @@ from astropy.wcs import WCS
 
 
 class FluxRMS(Cloud):
-    def __init__(self, line=None, *args, **kwargs):
+    def __init__(self, line=None, signal_v_range=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if line is None:
             assert len(self.cubes) == 1, "Arguments `line` can be None iff exactly 1 line in the Cloud object."
@@ -17,8 +17,14 @@ class FluxRMS(Cloud):
         self.mask2d = self.mask_cube_obj.get_mask_map2d()
 
         self.big_cube = self.big_cubes[line]
-        self.signal_vlo, self.signal_vhi = self.masked_cube.spectral_extrema
-        self.signal_channel_num = self.masked_cube.shape[0]
+        if signal_v_range is None:
+            self.signal_vlo, self.signal_vhi = self.masked_cube.spectral_extrema
+            self.signal_channel_num = self.masked_cube.shape[0]
+        else:
+            self.signal_vlo, self.signal_vhi = signal_v_range
+            v_resolution = abs(self.big_cube.spectral_axis[0] - self.big_cube.spectral_axis[1])
+            self.signal_channel_num = int(((self.signal_vhi - self.signal_vlo) / v_resolution).value)
+
         self.set_full_v_range(*self.big_cube.spectral_extrema)
 
         self.unit = self.big_cube.unit
@@ -45,16 +51,19 @@ class FluxRMS(Cloud):
         v_axis = self.masked_cube_with_larger_v_range.spectral_axis.value
 
         t = np.where(np.isclose(v_axis, self.signal_vlo.value))[0]
-        assert len(t) == 1
-        self.signal_channel_lo = t[0]
-        t = np.where(np.isclose(v_axis, self.signal_vhi.value))[0]
-        assert len(t) == 1
-        self.signal_channel_hi = t[0]
-        if self.signal_channel_hi < self.signal_channel_lo:
-            self.signal_channel_hi, self.signal_channel_lo = self.signal_channel_lo, self.signal_channel_hi
+        if len(t) == 0:
+            self.signal_channel_lo = None
+        else:
+            assert len(t) == 1
+            self.signal_channel_lo = t[0]
 
-        self.signal_channel_hi += 1
-        assert (self.signal_channel_hi - self.signal_channel_lo) == self.signal_channel_num
+        t = np.where(np.isclose(v_axis, self.signal_vhi.value))[0]
+        if len(t) == 0:
+            self.signal_channel_hi = None
+
+        else:
+            assert len(t) == 1
+            self.signal_channel_hi = t[0] + 1
 
         self.masked_cube_with_larger_v_range_data = self.masked_cube_with_larger_v_range.filled_data[:].value
 
@@ -67,6 +76,11 @@ class FluxRMS(Cloud):
         :param n_channel_extra_clip:
         :return:
         """
+        if self.signal_channel_lo is None:
+            self.signal_channel_lo = 0
+        if self.signal_channel_hi is None:
+            self.signal_channel_hi = self.big_cube.shape[0]
+
         part1_upper_bound = self.signal_channel_lo - n_channel_extra_clip
         part2_lower_bound = self.signal_channel_hi + n_channel_extra_clip
         part1 = np.arange(0, part1_upper_bound - self.signal_channel_num, n_channel_step_size)
@@ -104,16 +118,23 @@ class FluxRMS(Cloud):
         :return: FluxRMS object
         """
         bvlo, bvhi = big_cube.spectral_extrema
+        v_resolution = abs(big_cube.spectral_axis[0] - big_cube.spectral_axis[1])
         if cloud_vlo >= bvhi or cloud_vhi <= bvlo:
-            template = big_cube.subcube(zlo=bvhi - (cloud_vhi - cloud_vlo), zhi=bvhi)
+            cloud_number_of_channels = int((abs(cloud_vhi - cloud_vlo) / v_resolution).value)
+            template = big_cube.subcube(zlo=0, zhi=cloud_number_of_channels)
             data = np.ones(template.shape)
             header = template.header.copy()
-            header['CRVAL3'] += (cloud_vhi - bvhi).to(big_cube.spectral_axis.unit).value
+            header['CRPIX3'] = 0
+            header['CRVAL3'] = cloud_vlo.to(big_cube.spectral_axis.unit).value
             cloud_cube = SpectralCube(data=data, wcs=WCS(header))
         else:
             cloud_cube = big_cube.subcube(zlo=cloud_vlo, zhi=cloud_vhi)
 
-        cloud = FluxRMS(name='fakesquarecloud', mask_cube=cloud_cube, big_cubes=OrderedDict({'line': big_cube}))
+        print(cloud_cube.spectral_extrema)
+        cloud = FluxRMS(name='fakesquarecloud',
+                        mask_cube=cloud_cube,
+                        big_cubes=OrderedDict({'line': big_cube}),
+                        signal_v_range=(cloud_vlo, cloud_vhi))
         return cloud
 
 
@@ -121,7 +142,6 @@ if __name__ == '__main__':
     # test
     from multi_fits_cubes.cloud import CloudManager
     from matplotlib import pyplot as plt
-    '''
     cube = SpectralCube.read('../test_data/bigs/M195_L2.fits')
     cube.allow_huge_operations = True
     cube = cube * u.K
@@ -134,8 +154,8 @@ if __name__ == '__main__':
     plt.legend()
     plt.show()
     print(flux_rms_values)
-    '''
 
+    '''
     big_cube = SpectralCube.read("../test_data/noise/Noise_1_100_195_0_L.fits")
     big_cube.allow_huge_operations = True
     big_cube = big_cube * u.K
@@ -144,6 +164,7 @@ if __name__ == '__main__':
     cloud = FluxRMS.make_fake_square_cloud(big_cube=big_cube,
                                    cloud_vlo=bvlo - cloud_v_width,
                                    cloud_vhi=bvlo)
+    print(cloud['line'].spectral_extrema)
     start_channels, flux_rms_values = cloud.sliding_rms_values(4, 0)
     plt.hist(flux_rms_values)
     plt.show()
@@ -154,9 +175,11 @@ if __name__ == '__main__':
     plt.show()
     print()
 
+    cloud_v_width = 20 * u.km / u.s
     cloud = FluxRMS.make_fake_square_cloud(big_cube=big_cube,
-                                           cloud_vlo=bvhi,
-                                           cloud_vhi=bvhi + cloud_v_width)
+                                           cloud_vlo=bvlo - cloud_v_width,
+                                           cloud_vhi=bvlo)
+    print(cloud['line'].spectral_extrema)
     start_channels, flux_rms_values = cloud.sliding_rms_values(4, 0)
     plt.hist(flux_rms_values)
     plt.show()
@@ -165,6 +188,8 @@ if __name__ == '__main__':
     v = cloud.channel_index_to_velocity(start_channels, with_unit=u.km / u.s)
     plt.plot(v, flux_rms_values)
     plt.show()
+    '''
+
 
 
 

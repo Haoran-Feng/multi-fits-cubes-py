@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "multi-fits-cubes"
-version = "0.1.4"
+version = "0.1.4.1"
 description = ""
 authors = ["HRFeng-PMO <hrfeng@pmo.ac.cn>"]
 
