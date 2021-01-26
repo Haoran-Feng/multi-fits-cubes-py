@@ -63,6 +63,7 @@ class MaskCube:
             ylo=blo, yhi=bhi,
             zlo=vlo, zhi=vhi).with_spectral_unit(with_vel_unit)
 
+        new_cube.allow_huge_operations = True
         if new_cube.unit == u.dimensionless_unscaled:
             new_cube = new_cube * with_value_unit
 
